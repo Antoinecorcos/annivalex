@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>L'anniv d'Alex 🎉</title>
+  <meta name="description" content="Toutes les infos de l'anniversaire d'Alex — et confirme ta présence !" />
+  <meta name="theme-color" content="#0b0420" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎉</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-aurora" aria-hidden="true"></div>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="cursor-glow" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <a href="#top" class="nav-logo">🎉</a>
+    <div class="nav-links">
+      <a href="#infos">Infos</a>
+      <a href="#programme">Programme</a>
+      <a href="#gateau">Gâteau</a>
+      <a href="#rsvp" class="nav-cta">Je réponds</a>
+    </div>
+    <button class="music-btn" id="musicBtn" aria-pressed="false" title="Musique">
+      <span class="eq"><i></i><i></i><i></i><i></i></span>
+    </button>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero" id="top">
+    <canvas id="heroCanvas" aria-hidden="true"></canvas>
+    <h1 class="sr-only" id="heroTitle">Alex</h1>
+    <div class="hero-content">
+      <p class="eyebrow reveal">Tu es invité·e à l'anniversaire de</p>
+      <div class="hero-spacer"></div>
+      <p class="hero-age reveal"><span id="ageNum">0</span> <span>ans</span></p>
+      <p class="tagline reveal" data-bind="tagline"></p>
+
+      <div class="countdown reveal" id="countdown" aria-live="polite">
+        <div class="cd-unit"><span class="cd-num" data-cd="d">00</span><span class="cd-lbl">jours</span></div>
+        <div class="cd-unit"><span class="cd-num" data-cd="h">00</span><span class="cd-lbl">heures</span></div>
+        <div class="cd-unit"><span class="cd-num" data-cd="m">00</span><span class="cd-lbl">min</span></div>
+        <div class="cd-unit"><span class="cd-num" data-cd="s">00</span><span class="cd-lbl">sec</span></div>
+      </div>
+
+      <a href="#rsvp" class="btn btn-primary btn-magnetic reveal">Je confirme ma présence</a>
+      <p class="hint reveal">Passe ta souris sur le nom 👆</p>
+    </div>
+    <a href="#infos" class="scroll-down" aria-label="Défiler"><span></span></a>
+  </header>
+
+  <!-- MARQUEE -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track" id="marquee"></div>
+  </div>
+
+  <main>
+    <!-- INFOS -->
+    <section class="section" id="infos">
+      <h2 class="section-title reveal"><span class="grad">Les infos</span> essentielles</h2>
+      <div class="grid-3">
+        <article class="card tilt reveal">
+          <div class="card-icon">📅</div>
+          <h3>Quand ?</h3>
+          <p class="big" data-bind="dateLong"></p>
+          <p data-bind="timeLabel"></p>
+          <button class="btn btn-ghost" id="calBtn">Ajouter à mon agenda</button>
+        </article>
+        <article class="card tilt reveal">
+          <div class="card-icon">📍</div>
+          <h3>Où ?</h3>
+          <p class="big" data-bind="venue.name"></p>
+          <p data-bind="venue.address"></p>
+          <p class="muted" data-bind="venue.access"></p>
+          <a class="btn btn-ghost" id="mapsLink" target="_blank" rel="noopener">Ouvrir l'itinéraire</a>
+        </article>
+        <article class="card tilt reveal">
+          <div class="card-icon">👗</div>
+          <h3>Dress code</h3>
+          <p class="big" data-bind="dressCode"></p>
+          <p class="muted">Réponse avant le <strong data-bind="rsvpDeadline"></strong></p>
+          <p class="muted">Une question ? <span data-bind="contact.name"></span> — <a data-bind="contact.phone" id="phoneLink"></a></p>
+        </article>
+      </div>
+      <div class="grid-3 small-cards" id="extraInfos"></div>
+    </section>
+
+    <!-- PROGRAMME -->
+    <section class="section" id="programme">
+      <h2 class="section-title reveal">Le <span class="grad">programme</span></h2>
+      <ol class="timeline" id="timeline"></ol>
+    </section>
+
+    <!-- GATEAU -->
+    <section class="section" id="gateau">
+      <h2 class="section-title reveal">Souffle les <span class="grad">bougies</span></h2>
+      <p class="section-sub reveal">Active ton micro et souffle fort sur ton écran… ou clique sur les flammes.</p>
+      <div class="cake-wrap reveal">
+        <div class="cake" id="cake">
+          <div class="candles" id="candles"></div>
+          <div class="tier tier-top"><span class="drip"></span></div>
+          <div class="tier tier-mid"><span class="drip"></span></div>
+          <div class="tier tier-bot"></div>
+          <div class="plate"></div>
+        </div>
+        <div class="cake-actions">
+          <button class="btn btn-primary" id="micBtn">🎤 Souffler avec le micro</button>
+          <button class="btn btn-ghost" id="relightBtn" hidden>🔥 Rallumer</button>
+          <div class="meter" aria-hidden="true"><div class="meter-fill" id="meterFill"></div></div>
+          <p class="cake-msg" id="cakeMsg" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RSVP -->
+    <section class="section" id="rsvp">
+      <h2 class="section-title reveal">Tu <span class="grad">viens</span> ?</h2>
+      <p class="section-sub reveal">Réponds avant le <strong data-bind="rsvpDeadline"></strong>. Tu peux changer d'avis en renvoyant ta réponse avec le même nom.</p>
+
+      <div class="rsvp-layout">
+        <form class="card rsvp-form reveal" id="rsvpForm" novalidate>
+          <label class="field">
+            <span>Ton prénom et nom</span>
+            <input type="text" name="name" id="nameInput" required maxlength="60" autocomplete="name" placeholder="Ex : Léa Martin" />
+          </label>
+
+          <fieldset class="choice">
+            <legend>Ta réponse</legend>
+            <label class="choice-opt yes">
+              <input type="radio" name="status" value="present" required />
+              <span><b>🥳</b> Présent·e</span>
+            </label>
+            <label class="choice-opt no">
+              <input type="radio" name="status" value="absent" />
+              <span><b>😢</b> Pas présent·e</span>
+            </label>
+          </fieldset>
+
+          <label class="field guests-field" id="guestsField">
+            <span>Nombre de personnes (toi compris)</span>
+            <div class="stepper">
+              <button type="button" data-step="-1" aria-label="Moins">−</button>
+              <input type="number" name="guests" id="guestsInput" value="1" min="1" max="5" inputmode="numeric" />
+              <button type="button" data-step="1" aria-label="Plus">+</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Un petit mot pour Alex <em>(optionnel)</em></span>
+            <textarea name="message" rows="3" maxlength="400" placeholder="Allergies, covoiturage, déclaration d'amour…"></textarea>
+          </label>
+
+          <button class="btn btn-primary btn-block" type="submit" id="submitBtn">Envoyer ma réponse</button>
+          <p class="form-msg" id="formMsg" role="status"></p>
+        </form>
+
+        <aside class="card guestlist reveal">
+          <div class="stats">
+            <div><span class="stat-num" id="statPresent">0</span><span class="stat-lbl">présents</span></div>
+            <div><span class="stat-num" id="statPeople">0</span><span class="stat-lbl">personnes</span></div>
+            <div><span class="stat-num" id="statAbsent">0</span><span class="stat-lbl">absents</span></div>
+          </div>
+          <h3>Ils seront là 🎊</h3>
+          <ul class="chips" id="guestChips"><li class="muted">Chargement…</li></ul>
+          <p class="demo-note" id="demoNote" hidden>Mode démo : les réponses sont stockées dans ce navigateur uniquement. Configure Google Sheets (voir README) pour les partager.</p>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Fait avec 💜 pour <span data-bind="name"></span> · <span id="footerYear"></span></p>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

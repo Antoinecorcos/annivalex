@@ -25,15 +25,21 @@
     const v = resolve(el.dataset.bind);
     if (v != null) el.textContent = v;
   });
+  // Les blocs dont l'info n'est pas renseignée dans config.js disparaissent
+  $$("[data-if]").forEach((el) => {
+    const v = resolve(el.dataset.if);
+    if (!v || (Array.isArray(v) && !v.length)) el.remove();
+  });
   document.title = `L'anniv de ${P.name} 🎉`;
   $("#heroTitle").textContent = P.name;
   $("#footerYear").textContent = partyDate.getFullYear();
-  $("#mapsLink").href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(`${P.venue.name}, ${P.venue.address}`);
+  $("#mapsLink").href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(P.venue.address);
   if (!matchMedia("(hover: hover)").matches) $(".hint").textContent = "Touche le nom pour l'exploser 👆";
-  $("#phoneLink").href = "tel:" + P.contact.phone.replace(/\s/g, "");
+  if ($("#phoneLink")) $("#phoneLink").href = "tel:" + P.contact.phone.replace(/\s/g, "");
+  if ($("#deezerLink")) $("#deezerLink").href = P.deezerPlaylistUrl;
 
   $("#extraInfos").innerHTML = "";
-  P.infos.forEach((info) => {
+  (P.infos || []).forEach((info) => {
     const card = document.createElement("article");
     card.className = "card mini tilt reveal";
     card.innerHTML = `<div class="card-icon"></div><div><h3></h3><p></p></div>`;
@@ -43,7 +49,7 @@
     $("#extraInfos").appendChild(card);
   });
 
-  P.program.forEach((step) => {
+  (P.program || []).forEach((step) => {
     const li = document.createElement("li");
     li.className = "reveal";
     li.innerHTML = `<span class="tl-time"></span><div class="card tl-body tilt"><h3></h3><p class="muted"></p></div>`;
@@ -462,59 +468,74 @@
   })();
 
   /* =========================================================
-     RSVP : Google Sheets (via Apps Script) ou mode démo local
+     Stockage partagé : Google Sheets (via Apps Script) ou mode démo local
+     ========================================================= */
+  const ENDPOINT = (P.rsvpEndpoint || "").trim();
+  const ME_KEY = "annivalex-me";
+  const keyOf = (n) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
+  const safeGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const safeSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* stockage indisponible */ } };
+
+  const Store = (() => {
+    const listeners = [];
+    let state = { guests: [], songs: [] };
+    const emit = (s) => { state = { guests: s.guests || [], songs: s.songs || [] }; listeners.forEach((fn) => fn(state)); return state; };
+    const local = {
+      read() { return JSON.parse(safeGet("annivalex-demo") || '{"guests":[],"songs":[]}'); },
+      write(s) { safeSet("annivalex-demo", JSON.stringify(s)); return s; },
+    };
+    const call = async (body) => {
+      // text/plain = requête "simple", évite le pré-vol CORS d'Apps Script
+      const r = await fetch(ENDPOINT, body ? { method: "POST", body: JSON.stringify(body) } : { cache: "no-store" });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error);
+      return j;
+    };
+    return {
+      onChange(fn) { listeners.push(fn); },
+      get state() { return state; },
+      async refresh() { return emit(ENDPOINT ? await call() : local.read()); },
+      async rsvp(data) {
+        if (ENDPOINT) return emit(await call({ type: "rsvp", ...data }));
+        const s = local.read();
+        const i = s.guests.findIndex((g) => keyOf(g.name) === keyOf(data.name));
+        const rec = { name: data.name, status: data.status, guests: data.guests };
+        if (i >= 0) s.guests[i] = rec; else s.guests.push(rec);
+        return emit(local.write(s));
+      },
+      async addSong(song) {
+        if (ENDPOINT) return emit(await call({ type: "song", ...song }));
+        const s = local.read();
+        if (!s.songs.some((x) => String(x.id) === String(song.id))) s.songs.push(song);
+        return emit(local.write(s));
+      },
+    };
+  })();
+  if (!ENDPOINT) $$(".demo-note").forEach((n) => { n.hidden = false; });
+
+  const animateNum = (el, to) => {
+    const from = +el.textContent || 0;
+    if (from === to) return;
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 700);
+      el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
+  /* =========================================================
+     RSVP
      ========================================================= */
   (() => {
     const form = $("#rsvpForm"), msg = $("#formMsg"), submit = $("#submitBtn");
     const guestsField = $("#guestsField"), guestsInput = $("#guestsInput"), nameInput = $("#nameInput");
-    const ENDPOINT = (P.rsvpEndpoint || "").trim();
-    const LS_KEY = "annivalex-rsvp-demo", ME_KEY = "annivalex-me";
-    const keyOf = (n) => n.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
-    const safeGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
-    const safeSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* stockage indisponible */ } };
+    const MAX = Math.max(1, P.maxGuestsPerReply || 1);
+    guestsInput.max = MAX;
+    if (MAX === 1) guestsField.remove();
 
-    const api = ENDPOINT
-      ? {
-          async list() {
-            const r = await fetch(ENDPOINT, { cache: "no-store" });
-            const j = await r.json();
-            if (!j.ok) throw new Error(j.error);
-            return j.guests;
-          },
-          async submit(data) {
-            // text/plain = requête "simple", évite le pré-vol CORS d'Apps Script
-            const r = await fetch(ENDPOINT, { method: "POST", body: JSON.stringify(data) });
-            const j = await r.json();
-            if (!j.ok) throw new Error(j.error);
-            return j.guests;
-          },
-        }
-      : {
-          async list() { return JSON.parse(safeGet(LS_KEY) || "[]"); },
-          async submit(data) {
-            const all = await this.list();
-            const i = all.findIndex((g) => keyOf(g.name) === keyOf(data.name));
-            const rec = { name: data.name, status: data.status, guests: data.guests };
-            if (i >= 0) all[i] = rec; else all.push(rec);
-            safeSet(LS_KEY, JSON.stringify(all));
-            return all;
-          },
-        };
-    if (!ENDPOINT) $("#demoNote").hidden = false;
-
-    const animateNum = (el, to) => {
-      const from = +el.textContent || 0;
-      if (from === to) return;
-      const t0 = performance.now();
-      const step = (t) => {
-        const k = Math.min(1, (t - t0) / 700);
-        el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
-        if (k < 1) requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
-    };
-
-    const render = (guests) => {
+    Store.onChange(({ guests }) => {
       const me = keyOf(safeGet(ME_KEY) || "");
       const present = guests.filter((g) => g.status === "present");
       animateNum($("#statPresent"), present.length);
@@ -538,9 +559,9 @@
         li.style.animationDelay = `${Math.min(i, 30) * 30}ms`;
         ul.appendChild(li);
       });
-    };
+    });
 
-    const refresh = () => api.list().then(render).catch(() => {
+    const refresh = () => Store.refresh().catch(() => {
       $("#guestChips").innerHTML = '<li class="muted">Impossible de charger la liste pour le moment.</li>';
     });
     refresh();
@@ -550,13 +571,11 @@
     const saved = safeGet(ME_KEY);
     if (saved) nameInput.value = saved;
 
-    const syncGuests = () => {
-      const st = form.status.value;
-      guestsField.classList.toggle("hidden", st === "absent");
-    };
-    $$('input[name="status"]').forEach((r) => r.addEventListener("change", syncGuests));
+    $$('input[name="status"]').forEach((r) => r.addEventListener("change", () => {
+      if (guestsField.isConnected) guestsField.classList.toggle("hidden", form.status.value === "absent");
+    }));
     $$(".stepper button").forEach((b) => b.addEventListener("click", () => {
-      guestsInput.value = Math.min(5, Math.max(1, (+guestsInput.value || 1) + +b.dataset.step));
+      guestsInput.value = Math.min(MAX, Math.max(1, (+guestsInput.value || 1) + +b.dataset.step));
     }));
 
     form.addEventListener("submit", async (e) => {
@@ -568,15 +587,15 @@
       if (!status) { msg.textContent = "Dis-nous si tu viens !"; msg.classList.add("err"); return; }
       const data = {
         name, status,
-        guests: status === "present" ? Math.min(5, Math.max(1, +guestsInput.value || 1)) : 0,
+        guests: status === "present" ? Math.min(MAX, Math.max(1, +guestsInput.value || 1)) : 0,
         message: form.message.value.trim().slice(0, 400),
       };
       submit.disabled = true;
       submit.textContent = "Envoi…";
       try {
-        const guests = await api.submit(data);
+        await Store.rsvp(data);
         safeSet(ME_KEY, name);
-        render(guests);
+        Store.refresh().catch(() => {}); // re-rendu avec la puce "moi"
         msg.classList.add("ok");
         if (status === "present") {
           msg.textContent = `Génial ${name.split(" ")[0]} ! On t'attend 🥳`;
@@ -587,6 +606,8 @@
           msg.textContent = "Dommage… merci d'avoir répondu 💜";
         }
         form.message.value = "";
+        const by = $("#songBy");
+        if (by && !by.value) by.value = name;
       } catch (err) {
         msg.textContent = "Oups, l'envoi a échoué. Réessaie dans un instant.";
         msg.classList.add("err");
@@ -595,6 +616,135 @@
         submit.textContent = "Envoyer ma réponse";
       }
     });
+  })();
+
+  /* =========================================================
+     Playlist : recherche Deezer, extraits 30 s, ajout par les invités
+     ========================================================= */
+  (() => {
+    const input = $("#songSearch"), results = $("#searchResults"), list = $("#songList"), by = $("#songBy");
+    const audio = new Audio();
+    let playingId = null, playingBtn = null, searchSeq = 0;
+    by.value = safeGet(ME_KEY) || "";
+
+    // L'API publique Deezer n'envoie pas d'en-têtes CORS : on passe par JSONP
+    const jsonp = (url) => new Promise((resolve, reject) => {
+      const cb = "dz_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      const s = document.createElement("script");
+      const cleanup = () => { clearTimeout(timer); window[cb] = () => {}; s.remove(); };
+      const timer = setTimeout(() => { cleanup(); reject(new Error("timeout")); }, 8000);
+      window[cb] = (d) => { cleanup(); d && d.error ? reject(new Error(d.error.message)) : resolve(d); };
+      s.onerror = () => { cleanup(); reject(new Error("network")); };
+      s.src = `${url}${url.includes("?") ? "&" : "?"}output=jsonp&callback=${cb}`;
+      document.head.appendChild(s);
+    });
+
+    const stop = () => {
+      audio.pause();
+      if (playingBtn) playingBtn.closest(".track").classList.remove("playing");
+      playingId = playingBtn = null;
+    };
+    audio.addEventListener("ended", stop);
+    audio.addEventListener("timeupdate", () => {
+      if (playingBtn) playingBtn.style.setProperty("--p", (audio.currentTime / (audio.duration || 30)) * 100 + "%");
+    });
+
+    const play = async (track, btn) => {
+      if (playingId === track.id) return stop();
+      stop();
+      playingId = track.id; playingBtn = btn;
+      btn.closest(".track").classList.add("playing");
+      try {
+        // les liens d'extraits expirent : on en redemande un frais si besoin
+        const preview = track.preview || (await jsonp(`https://api.deezer.com/track/${encodeURIComponent(track.id)}`)).preview;
+        if (playingId !== track.id) return;
+        if (!preview) throw new Error("no preview");
+        audio.src = preview;
+        await audio.play();
+      } catch {
+        if (playingId === track.id) stop();
+      }
+    };
+
+    const trackEl = (t, { action, label, sub }) => {
+      const li = document.createElement("li");
+      li.className = "track";
+      li.innerHTML = `
+        <button class="tr-play" type="button" aria-label="Écouter l'extrait"><img alt="" loading="lazy" /><span class="tr-icon"></span><span class="eq"><i></i><i></i><i></i><i></i></span></button>
+        <div class="tr-meta"><b></b><span></span></div>
+        <button class="tr-add" type="button"></button>`;
+      $("img", li).src = t.cover || "";
+      $("b", li).textContent = t.title;
+      $(".tr-meta span", li).textContent = sub;
+      $(".tr-play", li).addEventListener("click", (e) => play(t, e.currentTarget));
+      const add = $(".tr-add", li);
+      if (action) { add.textContent = label; add.addEventListener("click", () => action(add)); }
+      else {
+        add.replaceWith(Object.assign(document.createElement("a"), {
+          className: "tr-add", href: `https://www.deezer.com/track/${t.id}`, target: "_blank", rel: "noopener", textContent: "↗", title: "Ouvrir sur Deezer",
+        }));
+      }
+      return li;
+    };
+
+    const renderSongs = ({ songs }) => {
+      $("#songCount").textContent = songs.length ? `${songs.length} son${songs.length > 1 ? "s" : ""}` : "";
+      const ids = new Set(songs.map((s) => String(s.id)));
+      $$(".tr-add[data-id]", results).forEach((b) => { if (ids.has(b.dataset.id)) { b.textContent = "✓"; b.disabled = true; } });
+      list.innerHTML = "";
+      if (!songs.length) { list.innerHTML = '<li class="muted empty">Aucun son pour l\'instant. Lance la soirée !</li>'; return; }
+      [...songs].reverse().forEach((s, i) => {
+        const li = trackEl(s, { sub: `${s.artist}${s.by ? " · ajouté par " + s.by : ""}` });
+        li.style.animationDelay = `${Math.min(i, 20) * 40}ms`;
+        if (String(s.id) === String(playingId)) li.classList.add("playing");
+        list.appendChild(li);
+      });
+    };
+    Store.onChange(renderSongs);
+
+    const search = async (q) => {
+      const seq = ++searchSeq;
+      if (q.length < 2) { results.innerHTML = ""; return; }
+      results.innerHTML = '<li class="muted empty">Recherche…</li>';
+      try {
+        const res = await jsonp(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=8`);
+        if (seq !== searchSeq) return;
+        results.innerHTML = "";
+        if (!res.data || !res.data.length) { results.innerHTML = '<li class="muted empty">Aucun résultat 🤷</li>'; return; }
+        const already = new Set(Store.state.songs.map((s) => String(s.id)));
+        res.data.forEach((d, i) => {
+          const t = { id: d.id, title: d.title, artist: d.artist.name, cover: d.album.cover_small, preview: d.preview };
+          const li = trackEl(t, {
+            sub: t.artist,
+            label: already.has(String(t.id)) ? "✓" : "+",
+            action: async (btn) => {
+              btn.disabled = true; btn.textContent = "…";
+              try {
+                const who = by.value.trim().slice(0, 40);
+                if (who) safeSet(ME_KEY, safeGet(ME_KEY) || who);
+                const { preview, ...song } = t;
+                await Store.addSong({ ...song, by: who });
+                btn.textContent = "✓";
+                const r = btn.getBoundingClientRect();
+                FX.confetti(r.left + r.width / 2, r.top + r.height / 2, { count: 50, spread: Math.PI * 2, power: 9 });
+              } catch {
+                btn.disabled = false; btn.textContent = "+";
+              }
+            },
+          });
+          const addBtn = $(".tr-add", li);
+          addBtn.dataset.id = t.id;
+          addBtn.setAttribute("aria-label", `Ajouter ${t.title} à la playlist`);
+          if (already.has(String(t.id))) addBtn.disabled = true;
+          li.style.animationDelay = `${i * 35}ms`;
+          results.appendChild(li);
+        });
+      } catch {
+        if (seq === searchSeq) results.innerHTML = '<li class="muted empty">Deezer ne répond pas, réessaie dans un instant.</li>';
+      }
+    };
+    let debounce;
+    input.addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => search(input.value.trim()), 300); });
   })();
 
   // Petite salve d'accueil

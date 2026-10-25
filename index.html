@@ -21,7 +21,8 @@
     <a href="#top" class="nav-logo">🎉</a>
     <div class="nav-links">
       <a href="#infos">Infos</a>
-      <a href="#programme">Programme</a>
+      <a href="#programme" data-if="program">Programme</a>
+      <a href="#playlist">Playlist</a>
       <a href="#gateau">Gâteau</a>
       <a href="#rsvp" class="nav-cta">Je réponds</a>
     </div>
@@ -75,22 +76,23 @@
           <h3>Où ?</h3>
           <p class="big" data-bind="venue.name"></p>
           <p data-bind="venue.address"></p>
-          <p class="muted" data-bind="venue.access"></p>
+          <p class="muted" data-bind="venue.access" data-if="venue.access"></p>
           <a class="btn btn-ghost" id="mapsLink" target="_blank" rel="noopener">Ouvrir l'itinéraire</a>
         </article>
         <article class="card tilt reveal">
-          <div class="card-icon">👗</div>
+          <div class="card-icon">🎩</div>
           <h3>Dress code</h3>
           <p class="big" data-bind="dressCode"></p>
-          <p class="muted">Réponse avant le <strong data-bind="rsvpDeadline"></strong></p>
-          <p class="muted">Une question ? <span data-bind="contact.name"></span> — <a data-bind="contact.phone" id="phoneLink"></a></p>
+          <p data-bind="theme" data-if="theme"></p>
+          <p class="muted" data-if="rsvpDeadline">Réponse avant le <strong data-bind="rsvpDeadline"></strong></p>
+          <p class="muted" data-if="contact.phone">Une question ? <span data-bind="contact.name"></span> — <a data-bind="contact.phone" id="phoneLink"></a></p>
         </article>
       </div>
       <div class="grid-3 small-cards" id="extraInfos"></div>
     </section>
 
     <!-- PROGRAMME -->
-    <section class="section" id="programme">
+    <section class="section" id="programme" data-if="program">
       <h2 class="section-title reveal">Le <span class="grad">programme</span></h2>
       <ol class="timeline" id="timeline"></ol>
     </section>
@@ -119,7 +121,7 @@
     <!-- RSVP -->
     <section class="section" id="rsvp">
       <h2 class="section-title reveal">Tu <span class="grad">viens</span> ?</h2>
-      <p class="section-sub reveal">Réponds avant le <strong data-bind="rsvpDeadline"></strong>. Tu peux changer d'avis en renvoyant ta réponse avec le même nom.</p>
+      <p class="section-sub reveal"><span data-if="rsvpDeadline">Réponds avant le <strong data-bind="rsvpDeadline"></strong>. </span>Tu peux changer d'avis en renvoyant ta réponse avec le même nom.</p>
 
       <div class="rsvp-layout">
         <form class="card rsvp-form reveal" id="rsvpForm" novalidate>
@@ -166,8 +168,31 @@
           </div>
           <h3>Ils seront là 🎊</h3>
           <ul class="chips" id="guestChips"><li class="muted">Chargement…</li></ul>
-          <p class="demo-note" id="demoNote" hidden>Mode démo : les réponses sont stockées dans ce navigateur uniquement. Configure Google Sheets (voir README) pour les partager.</p>
+          <p class="demo-note" hidden>Mode démo : les réponses sont stockées dans ce navigateur uniquement. Configure Google Sheets (voir README) pour les partager.</p>
         </aside>
+      </div>
+    </section>
+
+    <!-- PLAYLIST -->
+    <section class="section" id="playlist">
+      <h2 class="section-title reveal">La <span class="grad">playlist</span></h2>
+      <p class="section-sub reveal">Cherche un son, écoute l'extrait, ajoute-le. Ce soir, c'est toi le DJ 🎧</p>
+      <div class="playlist-layout">
+        <div class="card reveal">
+          <label class="search">
+            <span aria-hidden="true">🔍</span>
+            <input id="songSearch" type="search" placeholder="Titre, artiste…" autocomplete="off" aria-label="Rechercher un titre sur Deezer" />
+          </label>
+          <label class="by">Ajouté par <input id="songBy" type="text" maxlength="40" placeholder="ton prénom" /></label>
+          <ul class="tracks" id="searchResults" aria-live="polite"></ul>
+          <p class="powered">Recherche et extraits fournis par Deezer</p>
+        </div>
+        <div class="card reveal">
+          <div class="pl-head"><h3>Les sons des invités</h3><span id="songCount" class="muted"></span></div>
+          <ul class="tracks" id="songList"><li class="muted empty">Chargement…</li></ul>
+          <a id="deezerLink" data-if="deezerPlaylistUrl" class="btn btn-ghost btn-block" target="_blank" rel="noopener">Ouvrir la playlist sur Deezer ↗</a>
+          <p class="demo-note" hidden>Mode démo : les sons ajoutés restent dans ce navigateur.</p>
+        </div>
       </div>
     </section>
   </main>

@@ -1,39 +1,43 @@
 /* =========================================================
    ✏️  TOUTES LES INFOS DE LA FÊTE SE MODIFIENT ICI
+   Un champ laissé vide ("" ou []) fait disparaître le bloc correspondant.
    ========================================================= */
 window.PARTY = {
   name: "Alex",
-  age: 30,
+  age: 17,
 
   // Date et heure de début (format ISO, avec le fuseau horaire)
-  date: "2026-12-12T20:00:00+01:00",
+  date: "2026-11-14T19:30:00+01:00",
 
-  tagline: "Une soirée légendaire pour un frère légendaire.",
+  tagline: "17 ans, ça se fête comme il se doit.",
 
   venue: {
-    name: "Le Rooftop",
-    address: "12 rue de la Fête, 75011 Paris",
-    access: "Métro Oberkampf (ligne 5/9) · Digicode : 2026A · 5e étage",
+    name: "Maisons-Laffitte",
+    address: "16 avenue Jean-Jacques Rousseau, 78600 Maisons-Laffitte",
+    access: "", // ex : "Digicode 1234 · sonner chez …"
   },
 
-  dressCode: "Paillettes & couleurs vives ✨",
+  dressCode: "Plutôt chic 👔✨",
+  theme: "Pas de thème : viens comme tu es… mais en mieux.",
 
-  program: [
-    { time: "20:00", title: "Apéro & accueil", desc: "Cocktails, bulles et retrouvailles." },
-    { time: "21:00", title: "Dîner", desc: "Buffet géant, il y en aura pour tout le monde." },
-    { time: "22:30", title: "Gâteau & surprise", desc: "Chut… on compte sur vous pour garder le secret." },
-    { time: "23:00", title: "Dancefloor", desc: "DJ set jusqu'au bout de la nuit." },
-  ],
+  // Laisser vide pour masquer la section Programme
+  program: [],
 
   infos: [
-    { icon: "🎁", title: "Cadeau", text: "Cagnotte commune, le lien arrive par message." },
-    { icon: "🤫", title: "Surprise", text: "Alex ne doit rien savoir. Zéro story avant 22h30 !" },
-    { icon: "🚗", title: "Retour", text: "Covoiturages organisés, dites-le dans votre message." },
+    { icon: "🍬", title: "Gourmandises", text: "Si tu peux, ramène quelques petites gourmandises (sucrées ou salées) à partager !" },
+    { icon: "🎵", title: "Playlist", text: "Ajoute tes sons à la playlist de la soirée, plus bas sur cette page." },
+    { icon: "🎂", title: "Le gâteau", text: "Entraîne-toi à souffler les bougies : c'est un peu plus bas !" },
   ],
 
-  contact: { name: "David", phone: "06 00 00 00 00" },
+  contact: { name: "", phone: "" }, // ex : { name: "David", phone: "06 12 34 56 78" }
 
-  rsvpDeadline: "1er décembre",
+  rsvpDeadline: "", // ex : "7 novembre"
+
+  // Nombre max de personnes par réponse (1 = pas d'accompagnant)
+  maxGuestsPerReply: 1,
+
+  // Lien d'une playlist Deezer collaborative (facultatif, voir README.md)
+  deezerPlaylistUrl: "",
 
   // URL de l'application web Google Apps Script (voir README.md).
   // Laisser vide = mode démo : les réponses restent dans le navigateur.
